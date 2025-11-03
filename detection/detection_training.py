@@ -26,7 +26,7 @@ CONFIG = {
     "image_dir": r"C:\Users\EYLAB\Downloads\signver\images",
     "image_ids": r"C:\Users\EYLAB\Downloads\signver\updated_image_ids.csv",
     "train_split": 0.8,
-    "batch_size": 32,
+    "batch_size": 8,
     "num_epochs": 2,
     "learning_rate": 0.0001,
     "weight_decay": 1e-5,
