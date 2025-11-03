@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Signature Cross-Reference System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #1f2937;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header p {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+        
+        .clustering-info {
+            background: linear-gradient(135deg, #f0f4f8, #e2e8f0);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .clustering-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .clustering-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .clustering-step {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .clustering-step h4 {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .clustering-step p {
+            color: #6b7280;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .workflow {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .step-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .step-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+        
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        
+        .step-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+        
+        .step-description {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .file-input-group {
+            margin-bottom: 15px;
+        }
+        
+        .file-input-label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .file-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px dashed #d1d5db;
+            border-radius: 10px;
+            background: #f9fafb;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .file-input:hover {
+            border-color: #667eea;
+            background: #f0f4f8;
+        }
+        
+        .file-input.has-file {
+            border-color: #10b981;
+            background: #f0fdf4;
+            color: #059669;
+        }
+        
+        .config-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        }
+        
+        .config-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .config-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .config-label {
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .config-input {
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .config-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .config-range {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .range-value {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 0.9rem;
+        }
+        
+        .analyze-button {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+        
+        .analyze-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .analyze-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .analyze-button.running {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .progress-container {
+            background: #f1f5f9;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            display: none;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .progress-title {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .progress-percentage {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .progress-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .progress-step {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            border: 1px solid #e5e7eb;
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+        
+        .progress-step.active {
+            opacity: 1;
+            border-color: #667eea;
+            background: #f0f4f8;
+        }
+        
+        .progress-step.completed {
+            opacity: 1;
+            background: #ecfdf5;
+            border-color: #10b981;
+        }
+        
+        .results-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+        
+        .results-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .clustering-results {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .clustering-results h3 {
+            color: #1f2937;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .clustering-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .clustering-metric {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .clustering-metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .clustering-metric-label {
+            color: #6b7280;
+            font-size: 0.8rem;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .result-card {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s ease;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .result-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .result-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .table-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .table-search {
+            padding: 10px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            width: 250px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .table-search:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            min-width: 800px;
+        }
+        
+        .results-table th {
+            background: #f8fafc;
+            padding: 12px 10px;
+            text-align: center;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+            font-size: 0.85rem;
+        }
+        
+        .results-table td {
+            padding: 10px;
+            border-bottom: 1px solid #f1f5f9;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .results-table tr:hover {
+            background: #f8fafc;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-block;
+            min-width: 35px;
+        }
+        
+        .status-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-present {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-absent {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .count-badge {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-weight: 600;
+            min-width: 25px;
+            display: inline-block;
+        }
+        
+        .count-badge.has-count {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .actions-bar {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .action-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .download-button {
+            background: #10b981;
+            color: white;
+        }
+        
+        .download-button:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+        
+        .export-button {
+            background: #6366f1;
+            color: white;
+        }
+        
+        .export-button:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+        }
+        
+        .clear-button {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .clear-button:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+        
+        .api-status {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .api-status.error {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+        
+        .signature-visualization {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+        
+        .signature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .signature-item {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .signature-item:hover {
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
+        }
+        
+        .signature-preview {
+            width: 100%;
+            height: 80px;
+            background: #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-size: 0.8rem;
+            overflow: hidden;
+        }
+        
+        .signature-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .signature-info {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        
+        .signature-confidence {
+            background: #10b981;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        
+        @media (max-width: 768px) {
+            .workflow {
+                grid-template-columns: 1fr;
+            }
+            
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .results-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .clustering-summary {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .table-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .table-search {
+                width: 100%;
+            }
+            
+            .actions-bar {
+                flex-direction: column;
+            }
+            
+            .signature-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 PDF Signature Cross-Reference System</h1>
+            <p>Advanced two-level clustering for signature comparison across multiple PDF documents</p>
+        </div>
+        
+        <div class="api-status" id="apiStatus">
+            <!-- API status will be shown here -->
+        </div>
+        
+        <div class="clustering-info">
+            <div class="clustering-title">
+                🎯 Two-Level Clustering Approach
+            </div>
+            <p>Our advanced system uses a sophisticated two-level clustering methodology to ensure accurate signer identification:</p>
+            <div class="clustering-steps">
+                <div class="clustering-step">
+                    <h4>Level 1: Initial Clustering</h4>
+                    <p>Extract and cluster all signatures from the reference PDF into preliminary signer groups</p>
+                </div>
+                <div class="clustering-step">
+                    <h4>Level 2: Refinement</h4>
+                    <p>For each Level 1 group, perform additional clustering to separate similar but distinct signers</p>
+                </div>
+                <div class="clustering-step">
+                    <h4>Final Organization</h4>
+                    <p>Consolidate all final signer folders into a common directory for cross-reference analysis</p>
+                </div>
+                <div class="clustering-step">
+                    <h4>Cross-Document Matching</h4>
+                    <p>Search target PDFs for signatures matching any of the identified final signers</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="workflow">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <div class="step-title">Reference PDF</div>
+                <div class="step-description">Upload a PDF document to extract and perform two-level clustering of signatures into unique final signers</div>
+                <div class="file-input-group">
+                    <label class="file-input-label">Select Reference PDF</label>
+                    <div class="file-input" id="referenceInput">
+                        <span>📄 Click to select reference PDF file</span>
+                        <input type="file" accept=".pdf" id="referenceFile" style="display: none;">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <div class="step-title">Target PDFs</div>
+                <div class="step-description">Select multiple PDF documents to search for the final reference signers</div>
+                <div class="file-input-group">
+                    <label class="file-input-label">Select Target PDFs</label>
+                    <div class="file-input" id="targetInput">
+                        <span>📁 Click to select target PDF files</span>
+                        <input type="file" accept=".pdf" multiple id="targetFiles" style="display: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="config-section">
+            <div class="config-title">
+                ⚙️ Analysis Configuration
+            </div>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label class="config-label">Similarity Threshold</label>
+                    <input type="range" class="config-input config-range" id="similarityThreshold" min="0.5" max="0.9" step="0.05" value="0.7">
+                    <span class="range-value" id="thresholdValue">0.70</span>
+                </div>
+                <div class="config-item">
+                    <label class="config-label">Model Path</label>
+                    <input type="text" class="config-input" id="modelPath" 
+                           placeholder="/path/to/model/weights.pth" 
+                           value="/home/eyhyd/signature_comparison_v2/backend/models/detection/weights/faster_rcnn_signatures.pth">
+                </div>
+                <div class="config-item">
+                    <label class="config-label">VGG Weight</label>
+                    <input type="range" class="config-input config-range" id="vggWeight" min="0" max="1" step="0.1" value="0.7">
+                    <span class="range-value" id="vggValue">0.70</span>
+                </div>
+                <div class="config-item">
+                    <label class="config-label">ViT Weight</label>
+                    <input type="range" class="config-input config-range" id="vitWeight" min="0" max="1" step="0.1" value="0.3">
+                    <span class="range-value" id="vitValue">0.30</span>
+                </div>
+            </div>
+        </div>
+        
+        <button class="analyze-button" id="analyzeBtn" disabled>
+            🚀 Start Two-Level Cross-Reference Analysis
+        </button>
+        
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-header">
+                <div class="progress-title">Analysis Progress</div>
+                <div class="progress-percentage" id="progressPercentage">0%</div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-steps" id="progressSteps">
+                <!-- Progress steps will be populated here -->
+            </div>
+        </div>
+        
+        <!-- Signature Visualization Section -->
+        <div class="signature-visualization" id="signatureVisualization">
+            <h3 style="color: #1f2937; margin-bottom: 20px;">🔍 Detected Signatures</h3>
+            <div class="signature-grid" id="signatureGrid">
+                <!-- Detected signatures will be displayed here -->
+            </div>
+        </div>
+        
+        <div class="results-section" id="resultsSection">
+            <div class="results-title">
+                📊 Two-Level Clustering Analysis Results
+            </div>
+            
+            <div class="clustering-results">
+                <h3>🎯 Clustering Summary</h3>
+                <div class="clustering-summary" id="clusteringSummary">
+                    <!-- Clustering metrics will be populated here -->
+                </div>
+            </div>
+            
+            <div class="results-grid" id="resultsGrid">
+                <!-- Results will be populated here -->
+            </div>
+            
+            <div class="table-controls">
+                <input type="text" class="table-search" id="tableSearch" placeholder="🔍 Search PDFs...">
+                <div class="actions-bar">
+                    <button class="action-button download-button" id="downloadBtn">
+                        📥 Download Report
+                    </button>
+                    <button class="action-button export-button" id="exportDetailedBtn">
+                        📋 Export Detailed
+                    </button>
+                    <button class="action-button clear-button" id="clearBtn">
+                        🗑️ Clear Results
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="results-table" id="resultsTable">
+                    <thead>
+                        <tr id="tableHeader">
+                            <!-- Dynamic headers will be populated here -->
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody">
+                        <!-- Results will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Fixed API base URL
+        const API_BASE = 'http://localhost:5000/api';
+
+        // Analysis state management - Fixed structure
+        let analysisState = {
+            jobId: null,
+            referenceFile: null,
+            targetFiles: [],
+            isAnalyzing: false,
+            results: null,
+            finalSigners: [],
+            detectedSignatures: []
+        };
+
+        // Analysis steps for progress tracking
+        const analysisSteps = [
+            { id: 'init', label: 'Initializing PDF signature detector...', weight: 5 },
+            { id: 'upload_ref', label: 'Uploading reference PDF...', weight: 10 },
+            { id: 'upload_targets', label: 'Uploading target PDFs...', weight: 15 },
+            { id: 'extract', label: 'Extracting signatures from reference PDF...', weight: 25 },
+            { id: 'level1', label: 'Level 1: Initial signature clustering...', weight: 40 },
+            { id: 'level2', label: 'Level 2: Refining signer groups...', weight: 60 },
+            { id: 'target', label: 'Processing target PDFs...', weight: 80 },
+            { id: 'match', label: 'Matching signatures across documents...', weight: 95 },
+            { id: 'complete', label: 'Analysis complete!', weight: 100 }
+        ];
+
+        // DOM elements
+        const referenceInput = document.getElementById('referenceInput');
+        const referenceFile = document.getElementById('referenceFile');
+        const targetInput = document.getElementById('targetInput');
+        const targetFiles = document.getElementById('targetFiles');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressPercentage = document.getElementById('progressPercentage');
+        const progressSteps = document.getElementById('progressSteps');
+        const signatureVisualization = document.getElementById('signatureVisualization');
+        const signatureGrid = document.getElementById('signatureGrid');
+        const resultsSection = document.getElementById('resultsSection');
+        const clusteringSummary = document.getElementById('clusteringSummary');
+        const resultsGrid = document.getElementById('resultsGrid');
+        const tableHeader = document.getElementById('tableHeader');
+        const resultsTableBody = document.getElementById('resultsTableBody');
+        const tableSearch = document.getElementById('tableSearch');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const exportDetailedBtn = document.getElementById('exportDetailedBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const apiStatus = document.getElementById('apiStatus');
+        
+        // Configuration elements
+        const similarityThreshold = document.getElementById('similarityThreshold');
+        const thresholdValue = document.getElementById('thresholdValue');
+        const vggWeight = document.getElementById('vggWeight');
+        const vggValue = document.getElementById('vggValue');
+        const vitWeight = document.getElementById('vitWeight');
+        const vitValue = document.getElementById('vitValue');
+        const modelPath = document.getElementById('modelPath');
+
+        // Event listeners
+        referenceInput.addEventListener('click', () => referenceFile.click());
+        targetInput.addEventListener('click', () => targetFiles.click());
+        
+        referenceFile.addEventListener('change', handleReferenceFile);
+        targetFiles.addEventListener('change', handleTargetFiles);
+        analyzeBtn.addEventListener('click', startAnalysis);
+        clearBtn.addEventListener('click', clearResults);
+        downloadBtn.addEventListener('click', downloadRealReport);
+        exportDetailedBtn.addEventListener('click', exportDetailedReport);
+        tableSearch.addEventListener('input', filterTable);
+        
+        // Configuration listeners
+        similarityThreshold.addEventListener('input', (e) => {
+            thresholdValue.textContent = parseFloat(e.target.value).toFixed(2);
+        });
+        
+        vggWeight.addEventListener('input', (e) => {
+            const vgg = parseFloat(e.target.value);
+            vggValue.textContent = vgg.toFixed(2);
+            vitWeight.value = (1 - vgg).toFixed(1);
+            vitValue.textContent = (1 - vgg).toFixed(2);
+        });
+        
+        vitWeight.addEventListener('input', (e) => {
+            const vit = parseFloat(e.target.value);
+            vitValue.textContent = vit.toFixed(2);
+            vggWeight.value = (1 - vit).toFixed(1);
+            vggValue.textContent = (1 - vit).toFixed(2);
+        });
+
+        modelPath.addEventListener('input', checkAnalyzeButton);
+
+        // API Functions - Fixed to match your backend exactly
+        async function checkAPIConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                if (response.ok) {
+                    const status = await response.json();
+                    console.log('✅ Connected to API:', status.service);
+                    showApiStatus(`✅ Connected to ${status.service}`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                console.error('❌ API connection failed:', error);
+                showApiStatus('❌ Cannot connect to backend API. Please ensure Flask server is running on localhost:5000', 'error');
+                return false;
+            }
+        }
+
+        // File handling functions - Fixed file processing
+        function handleReferenceFile(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                analysisState.referenceFile = file;
+                referenceInput.classList.add('has-file');
+                referenceInput.innerHTML = `
+                    <span>✅ ${file.name}</span>
+                    <br><small style="opacity: 0.7;">${(file.size / 1024 / 1024).toFixed(1)} MB</small>
+                `;
+                checkAnalyzeButton();
+            }
+        }
+
+        function handleTargetFiles(event) {
+            const files = Array.from(event.target.files).filter(file => 
+                file.type === 'application/pdf'
+            );
+            
+            if (files.length > 0) {
+                analysisState.targetFiles = files;
+                targetInput.classList.add('has-file');
+                targetInput.innerHTML = `
+                    <span>✅ ${files.length} PDF files selected</span>
+                    <br><small style="opacity: 0.7;">${files.map(f => f.name).slice(0, 2).join(', ')}${files.length > 2 ? ` +${files.length - 2} more` : ''}</small>
+                `;
+                checkAnalyzeButton();
+            }
+        }
+
+        function checkAnalyzeButton() {
+            const hasReference = analysisState.referenceFile !== null;
+            const hasTargets = analysisState.targetFiles.length > 0;
+            const hasModelPath = modelPath.value.trim().length > 0;
+            
+            analyzeBtn.disabled = !(hasReference && hasTargets && hasModelPath && !analysisState.isAnalyzing);
+        }
+
+        // Fixed API Integration Functions to match your backend exactly
+        async function startAnalysis() {
+            if (analysisState.isAnalyzing) return;
+            
+            try {
+                analysisState.isAnalyzing = true;
+                analyzeBtn.disabled = true;
+                analyzeBtn.classList.add('running');
+                analyzeBtn.textContent = '🔄 Running Analysis...';
+                
+                progressContainer.style.display = 'block';
+                resultsSection.style.display = 'none';
+                signatureVisualization.style.display = 'none';
+                
+                initializeProgressSteps();
+                
+                // Step 1: Upload reference PDF
+                updateProgress(10, 'Uploading reference PDF...');
+                updateProgressSteps(10);
+                
+                const referenceUpload = await uploadReferenceFile();
+                analysisState.jobId = referenceUpload.job_id;
+                
+                // Step 2: Upload target PDFs  
+                updateProgress(15, 'Uploading target PDFs...');
+                updateProgressSteps(15);
+                
+                await uploadTargetFiles();
+                
+                // Step 3: Start backend analysis
+                updateProgress(25, 'Starting two-level clustering analysis...');
+                updateProgressSteps(25);
+                
+                await startBackendAnalysis();
+                
+                // Step 4: Poll for progress and display real-time updates
+                updateProgress(30, 'Processing signatures...');
+                await pollAnalysisProgress();
+                
+                // Step 5: Fetch and display final results
+                updateProgress(95, 'Fetching analysis results...');
+                await fetchAndDisplayResults();
+                
+                updateProgress(100, '✅ Analysis completed successfully!');
+                updateProgressSteps(100);
+                
+            } catch (error) {
+                console.error('Analysis failed:', error);
+                updateProgress(0, `❌ Analysis failed: ${error.message}`);
+                showApiStatus(`Analysis failed: ${error.message}`, 'error');
+            } finally {
+                analysisState.isAnalyzing = false;
+                analyzeBtn.classList.remove('running');
+                analyzeBtn.textContent = '🚀 Start Two-Level Cross-Reference Analysis';
+                checkAnalyzeButton();
+            }
+        }
+
+        // Fixed upload functions to match your Flask backend exactly
+        async function uploadReferenceFile() {
+            const formData = new FormData();
+            formData.append('file', analysisState.referenceFile);
+            
+            const response = await fetch(`${API_BASE}/upload-reference`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to upload reference file');
+            }
+            
+            return await response.json();
+        }
+
+        async function uploadTargetFiles() {
+            const formData = new FormData();
+            
+            // Add all target files
+            analysisState.targetFiles.forEach(file => {
+                formData.append('files', file);
+            });
+            
+            formData.append('job_id', analysisState.jobId);
+            
+            const response = await fetch(`${API_BASE}/upload-targets`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to upload target files');
+            }
+            
+            return await response.json();
+        }
+
+        async function startBackendAnalysis() {
+            const config = {
+                job_id: analysisState.jobId,
+                reference_path: `uploads/${analysisState.jobId}_reference_${analysisState.referenceFile.name}`,
+                target_folder: `uploads/${analysisState.jobId}_targets`,
+                config: {
+                    model_path: modelPath.value,
+                    similarity_threshold: parseFloat(similarityThreshold.value),
+                    vgg_weight: parseFloat(vggWeight.value),
+                    vit_weight: parseFloat(vitWeight.value)
+                }
+            };
+            
+            const response = await fetch(`${API_BASE}/start-analysis`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to start analysis');
+            }
+            
+            return await response.json();
+        }
+
+        // Fixed progress polling to match your backend progress reporting
+        async function pollAnalysisProgress() {
+            return new Promise((resolve, reject) => {
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const response = await fetch(`${API_BASE}/analysis-status/${analysisState.jobId}`);
+                        
+                        if (!response.ok) {
+                            clearInterval(pollInterval);
+                            reject(new Error('Failed to get analysis status'));
+                            return;
+                        }
+                        
+                        const status = await response.json();
+                        
+                        // Update progress UI with real backend progress
+                        updateProgress(status.progress, status.current_step);
+                        updateProgressSteps(status.progress);
+                        
+                        if (status.status === 'completed') {
+                            clearInterval(pollInterval);
+                            resolve(status);
+                        } else if (status.status === 'failed') {
+                            clearInterval(pollInterval);
+                            reject(new Error(status.error || 'Analysis failed'));
+                        }
+                        
+                    } catch (error) {
+                        clearInterval(pollInterval);
+                        reject(error);
+                    }
+                }, 3000); // Poll every 3 seconds
+                
+                // Timeout after 15 minutes for long analyses
+                setTimeout(() => {
+                    clearInterval(pollInterval);
+                    reject(new Error('Analysis timeout - process taking longer than expected'));
+                }, 900000);
+            });
+        }
+
+        // Fixed results fetching to match your backend response structure
+        async function fetchAndDisplayResults() {
+            const response = await fetch(`${API_BASE}/analysis-results/${analysisState.jobId}`);
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to fetch results');
+            }
+            
+            const results = await response.json();
+            console.log('📊 Raw API results:', results); // Debug log
+            
+            // Transform results to match expected format
+            analysisState.results = {
+                level1Signers: results.level1_signers || 0,
+                level2FinalSigners: results.level2_final_signers || 0,
+                targetPDFs: transformTargetResults(results.target_results || {}),
+                clusteringConfidence: calculateClusteringConfidence(results),
+                totalSignaturesProcessed: calculateTotalSignatures(results),
+                reportPath: results.report_path,
+                signerProfiles: results.signer_profiles || {}
+            };
+            
+            // Extract final signer IDs
+            analysisState.finalSigners = Object.keys(results.signer_profiles || {});
+            
+            // Display signature visualization if available
+            if (results.signer_profiles) {
+                displayDetectedSignatures(results.signer_profiles);
+            }
+            
+            displayResults();
+            showApiStatus('✅ Analysis completed successfully!', 'success');
+        }
+
+        // Helper functions to transform backend results
+        function transformTargetResults(targetResults) {
+            return Object.entries(targetResults).map(([filename, data]) => ({
+                name: filename,
+                totalSignatures: data.total_signatures || 0,
+                signerMatches: data.signer_matches || {},
+                signerSimilarities: data.signer_similarities || {},
+                matchedSignersCount: Object.values(data.signer_matches || {}).filter(count => count > 0).length,
+                status: data.processing_status || 'unknown',
+                signatureDetails: data.signature_details || []
+            }));
+        }
+
+        function calculateClusteringConfidence(results) {
+            // Calculate average confidence from signer profiles
+            const profiles = results.signer_profiles || {};
+            const confidences = Object.values(profiles).map(p => p.confidence_score || 0.5);
+            const avgConfidence = confidences.length > 0 ? 
+                confidences.reduce((sum, conf) => sum + conf, 0) / confidences.length : 0.5;
+            return avgConfidence.toFixed(3);
+        }
+
+        function calculateTotalSignatures(results) {
+            const targetResults = results.target_results || {};
+            return Object.values(targetResults).reduce((sum, pdf) => 
+                sum + (pdf.total_signatures || 0), 0
+            );
+        }
+
+        // Display detected signatures with real data
+        function displayDetectedSignatures(signerProfiles) {
+            signatureVisualization.style.display = 'block';
+            signatureGrid.innerHTML = '';
+            
+            Object.entries(signerProfiles).forEach(([signerId, profile], index) => {
+                setTimeout(() => {
+                    const signatureItem = document.createElement('div');
+                    signatureItem.className = 'signature-item';
+                    signatureItem.innerHTML = `
+                        <div class="signature-preview">
+                            <div style="font-size: 0.8rem; color: #6b7280;">
+                                ${signerId}
+                            </div>
+                        </div>
+                        <div class="signature-info">
+                            <strong>${signerId}</strong><br>
+                            ${profile.signature_count || 1} signatures<br>
+                            ${profile.documents_signed || 1} documents
+                        </div>
+                        <div class="signature-confidence">
+                            ${((profile.confidence_score || 0.5) * 100).toFixed(1)}% conf
+                        </div>
+                    `;
+                    
+                    signatureItem.addEventListener('click', () => {
+                        showSignerDetails(signerId, profile);
+                    });
+                    
+                    signatureGrid.appendChild(signatureItem);
+                }, index * 200);
+            });
+        }
+
+        function showSignerDetails(signerId, profile) {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 1000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                backdrop-filter: blur(10px);
+            `;
+            
+            overlay.innerHTML = `
+                <div style="background: white; border-radius: 20px; padding: 40px; max-width: 600px; color: #1f2937;">
+                    <h3 style="color: #667eea; margin-bottom: 25px; text-align: center;">
+                        👤 Signer Profile: ${signerId}
+                    </h3>
+                    
+                    <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <h4 style="color: #1f2937; margin-bottom: 15px;">📊 Profile Statistics</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <strong>Signature Count:</strong><br>
+                                <span style="color: #667eea; font-size: 1.2rem; font-weight: 600;">
+                                    ${profile.signature_count || 1}
+                                </span>
+                            </div>
+                            <div>
+                                <strong>Documents Signed:</strong><br>
+                                <span style="color: #10b981; font-size: 1.2rem; font-weight: 600;">
+                                    ${profile.documents_signed || 1}
+                                </span>
+                            </div>
+                            <div>
+                                <strong>Confidence Score:</strong><br>
+                                <span style="color: #f59e0b; font-size: 1.2rem; font-weight: 600;">
+                                    ${((profile.confidence_score || 0.5) * 100).toFixed(1)}%
+                                </span>
+                            </div>
+                            <div>
+                                <strong>Representative:</strong><br>
+                                <span style="color: #8b5cf6; font-size: 0.9rem;">
+                                    ${profile.representative_signature || 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${profile.document_list ? `
+                    <div style="background: #f0f9ff; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <h4 style="color: #1f2937; margin-bottom: 15px;">📄 Documents Signed</h4>
+                        <div style="font-size: 0.9rem; line-height: 1.5;">
+                            ${profile.document_list.join('<br>')}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <div style="text-align: center;">
+                        <button onclick="this.parentElement.parentElement.remove()" 
+                                style="padding: 12px 25px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600;">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        }
+
+        // Progress and UI Functions - Fixed progress tracking
+        function initializeProgressSteps() {
+            progressSteps.innerHTML = analysisSteps.map(step => 
+                `<div class="progress-step" id="step-${step.id}">
+                    ${step.label}
+                </div>`
+            ).join('');
+        }
+
+        function updateProgress(percentage, text) {
+            progressFill.style.width = `${percentage}%`;
+            progressPercentage.textContent = `${Math.round(percentage)}%`;
+            
+            // Update step indicator if text provided
+            if (text) {
+                const stepIndicator = document.querySelector('.progress-title');
+                if (stepIndicator) {
+                    stepIndicator.textContent = text;
+                }
+            }
+        }
+
+        function updateProgressSteps(progress) {
+            analysisSteps.forEach(step => {
+                const stepElement = document.getElementById(`step-${step.id}`);
+                if (stepElement) {
+                    if (progress >= step.weight) {
+                        stepElement.classList.remove('active');
+                        stepElement.classList.add('completed');
+                    } else if (progress >= step.weight - 15) {
+                        stepElement.classList.add('active');
+                        stepElement.classList.remove('completed');
+                    } else {
+                        stepElement.classList.remove('active', 'completed');
+                    }
+                }
+            });
+        }
+
+        // Fixed results display to handle real backend data structure
+        function displayResults() {
+            progressContainer.style.display = 'none';
+            resultsSection.style.display = 'block';
+            
+            // Update clustering summary with real data
+            clusteringSummary.innerHTML = `
+                <div class="clustering-metric">
+                    <div class="clustering-metric-value">${analysisState.results.level1Signers}</div>
+                    <div class="clustering-metric-label">Level 1 Groups</div>
+                </div>
+                <div class="clustering-metric">
+                    <div class="clustering-metric-value">${analysisState.results.level2FinalSigners}</div>
+                    <div class="clustering-metric-label">Final Signers</div>
+                </div>
+                <div class="clustering-metric">
+                    <div class="clustering-metric-value">${analysisState.results.clusteringConfidence}</div>
+                    <div class="clustering-metric-label">Clustering Confidence</div>
+                </div>
+                <div class="clustering-metric">
+                    <div class="clustering-metric-value">${analysisState.results.totalSignaturesProcessed}</div>
+                    <div class="clustering-metric-label">Total Signatures</div>
+                </div>
+            `;
+            
+            // Update main results grid with real calculations
+            const totalPDFs = analysisState.results.targetPDFs.length;
+            const successfulPDFs = analysisState.results.targetPDFs.filter(pdf => pdf.status === 'success').length;
+            const totalMatches = analysisState.results.targetPDFs.reduce((sum, pdf) => sum + pdf.matchedSignersCount, 0);
+            const avgMatchesPerPDF = totalPDFs > 0 ? (totalMatches / totalPDFs).toFixed(1) : '0.0';
+            
+            resultsGrid.innerHTML = `
+                <div class="result-card">
+                    <div class="result-number">${analysisState.results.level2FinalSigners}</div>
+                    <div class="result-label">Final Signers Identified</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-number">${totalPDFs}</div>
+                    <div class="result-label">Target PDFs Analyzed</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-number">${successfulPDFs}</div>
+                    <div class="result-label">Successfully Processed</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-number">${totalMatches}</div>
+                    <div class="result-label">Total Signer Matches</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-number">${avgMatchesPerPDF}</div>
+                    <div class="result-label">Avg Matches/PDF</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-number">${calculateSuccessRate()}%</div>
+                    <div class="result-label">Success Rate</div>
+                </div>
+            `;
+            
+            generateTableHeaders();
+            populateResultsTable();
+        }
+
+        function calculateSuccessRate() {
+            const totalPDFs = analysisState.results.targetPDFs.length;
+            const successfulPDFs = analysisState.results.targetPDFs.filter(pdf => pdf.status === 'success').length;
+            return totalPDFs > 0 ? ((successfulPDFs / totalPDFs) * 100).toFixed(1) : '0.0';
+        }
+
+        // Fixed table generation to handle dynamic signers correctly
+        function generateTableHeaders() {
+            let headerHTML = `
+                <th rowspan="2">PDF Name</th>
+                <th rowspan="2">Total Signatures</th>
+            `;
+            
+            // Add headers for each final signer
+            analysisState.finalSigners.forEach(signer => {
+                headerHTML += `<th colspan="3">${signer}</th>`;
+            });
+            
+            headerHTML += `
+                <th rowspan="2">Signers Found</th>
+                <th rowspan="2">Status</th>
+            `;
+            
+            headerHTML += `</tr><tr>`;
+            
+            // Add sub-headers for count, presence, similarity
+            analysisState.finalSigners.forEach(() => {
+                headerHTML += `<th>Count</th><th>Present</th><th>Similarity%</th>`;
+            });
+            
+            tableHeader.innerHTML = headerHTML;
+        }
+
+        function populateResultsTable() {
+            resultsTableBody.innerHTML = analysisState.results.targetPDFs.map(pdf => {
+                let row = `<tr data-pdf-name="${pdf.name.toLowerCase()}">
+                    <td><strong>${pdf.name}</strong></td>
+                    <td>${pdf.totalSignatures}</td>`;
+                
+                // Add data for each final signer
+                analysisState.finalSigners.forEach(signer => {
+                    const count = pdf.signerMatches[signer] || 0;
+                    const present = count > 0 ? 'Yes' : 'No';
+                    const similarityData = pdf.signerSimilarities[signer];
+                    const similarity = similarityData ? similarityData.avg_similarity_percentage : '0.0%';
+                    
+                    const countClass = count > 0 ? 'count-badge has-count' : 'count-badge';
+                    const presentClass = present === 'Yes' ? 'status-present' : 'status-absent';
+                    const similarityClass = count > 0 ? 'status-present' : 'status-absent';
+                    
+                    row += `
+                        <td><span class="${countClass}">${count}</span></td>
+                        <td><span class="status-badge ${presentClass}">${present}</span></td>
+                        <td><span class="status-badge ${similarityClass}">${similarity}</span></td>`;
+                });
+                
+                row += `
+                    <td><strong>${pdf.matchedSignersCount}</strong></td>
+                    <td><span class="status-badge status-success">✅ ${pdf.status}</span></td>
+                </tr>`;
+                
+                return row;
+            }).join('');
+        }
+
+        function filterTable() {
+            const searchTerm = tableSearch.value.toLowerCase();
+            const rows = resultsTableBody.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                const pdfName = row.getAttribute('data-pdf-name');
+                if (pdfName && pdfName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // Fixed download functions to work with real backend
+        async function downloadRealReport() {
+            if (!analysisState.jobId) {
+                showApiStatus('No analysis job found. Please run analysis first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/download-report/${analysisState.jobId}`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to download report');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `signature_crossref_report_${getTimestamp()}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showApiStatus('✅ Excel report downloaded successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Download failed:', error);
+                showApiStatus(`Download failed: ${error.message}`, 'error');
+            }
+        }
+
+        function exportDetailedReport() {
+            if (!analysisState.results) {
+                showApiStatus('No results to export. Please run analysis first.', 'error');
+                return;
+            }
+            
+            const detailedData = generateDetailedReport();
+            downloadFile(detailedData, 'application/json', `signature_detailed_report_${getTimestamp()}.json`);
+            showApiStatus('✅ Detailed JSON report exported!', 'success');
+        }
+
+        function generateDetailedReport() {
+            return JSON.stringify({
+                analysisMetadata: {
+                    timestamp: new Date().toISOString(),
+                    jobId: analysisState.jobId,
+                    referenceFile: analysisState.referenceFile?.name,
+                    targetFileCount: analysisState.targetFiles.length,
+                    similarityThreshold: similarityThreshold.value,
+                    modelPath: modelPath.value,
+                    clusteringWeights: {
+                        vgg: vggWeight.value,
+                        vit: vitWeight.value
+                    }
+                },
+                clusteringResults: {
+                    level1Signers: analysisState.results.level1Signers,
+                    level2FinalSigners: analysisState.results.level2FinalSigners,
+                    finalSignerList: analysisState.finalSigners,
+                    signerProfiles: analysisState.results.signerProfiles,
+                    clusteringConfidence: analysisState.results.clusteringConfidence
+                },
+                crossReferenceResults: analysisState.results.targetPDFs,
+                summary: {
+                    totalPDFsProcessed: analysisState.results.targetPDFs.length,
+                    totalSignaturesProcessed: analysisState.results.totalSignaturesProcessed,
+                    totalMatches: analysisState.results.targetPDFs.reduce((sum, pdf) => sum + pdf.matchedSignersCount, 0),
+                    successRate: calculateSuccessRate(),
+                    reportPath: analysisState.results.reportPath
+                }
+            }, null, 2);
+        }
+
+        function downloadFile(content, mimeType, filename) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        function getTimestamp() {
+            return new Date().toISOString().split('T')[0].replace(/-/g, '');
+        }
+
+        // Fixed cleanup function to properly clear backend data
+        async function clearResults() {
+            try {
+                // Clean up backend job if exists
+                if (analysisState.jobId) {
+                    await fetch(`${API_BASE}/cleanup/${analysisState.jobId}`, {
+                        method: 'DELETE'
+                    });
+                }
+            } catch (error) {
+                console.error('Cleanup failed:', error);
+            }
+            
+            // Reset all state
+            analysisState = {
+                jobId: null,
+                referenceFile: null,
+                targetFiles: [],
+                isAnalyzing: false,
+                results: null,
+                finalSigners: [],
+                detectedSignatures: []
+            };
+            
+            // Reset UI elements
+            resultsSection.style.display = 'none';
+            progressContainer.style.display = 'none';
+            signatureVisualization.style.display = 'none';
+            
+            // Reset file inputs
+            referenceInput.classList.remove('has-file');
+            referenceInput.innerHTML = '<span>📄 Click to select reference PDF file</span>';
+            targetInput.classList.remove('has-file');
+            targetInput.innerHTML = '<span>📁 Click to select target PDF files</span>';
+            
+            // Clear file inputs
+            referenceFile.value = '';
+            targetFiles.value = '';
+            tableSearch.value = '';
+            
+            // Reset progress
+            progressFill.style.width = '0%';
+            progressPercentage.textContent = '0%';
+            
+            // Clear grids
+            if (signatureGrid) signatureGrid.innerHTML = '';
+            if (resultsGrid) resultsGrid.innerHTML = '';
+            if (clusteringSummary) clusteringSummary.innerHTML = '';
+            if (resultsTableBody) resultsTableBody.innerHTML = '';
+            if (tableHeader) tableHeader.innerHTML = '';
+            
+            hideApiStatus();
+            checkAnalyzeButton();
+            
+            showApiStatus('✅ Results cleared successfully', 'success');
+        }
+
+        // API Status Functions - Fixed status management
+        function showApiStatus(message, type = 'success') {
+            apiStatus.textContent = message;
+            apiStatus.className = `api-status ${type === 'error' ? 'error' : ''}`;
+            apiStatus.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    hideApiStatus();
+                }, 5000);
+            }
+        }
+
+        function hideApiStatus() {
+            apiStatus.style.display = 'none';
+        }
+
+        // Enhanced error handling for robust demo
+        function handleError(error, context = 'Operation') {
+            console.error(`${context} failed:`, error);
+            
+            let errorMessage = error.message || 'Unknown error occurred';
+            
+            // Provide specific guidance for common errors
+            if (errorMessage.includes('fetch')) {
+                errorMessage = 'Cannot connect to backend. Please ensure Flask server is running on localhost:5000';
+            } else if (errorMessage.includes('upload')) {
+                errorMessage = 'File upload failed. Please check file format and try again';
+            } else if (errorMessage.includes('model')) {
+                errorMessage = 'Model path error. Please verify the model file exists';
+            }
+            
+            showApiStatus(`${context} failed: ${errorMessage}`, 'error');
+            
+            // Reset analysis state on error
+            if (analysisState.isAnalyzing) {
+                analysisState.isAnalyzing = false;
+                analyzeBtn.classList.remove('running');
+                analyzeBtn.textContent = '🚀 Start Two-Level Cross-Reference Analysis';
+                checkAnalyzeButton();
+            }
+        }
+
+        // Add real-time signature detection visualization (for future enhancement)
+        function visualizeSignatureDetection(signatures) {
+            // This would display actual signature bounding boxes
+            // when your backend provides image coordinates
+            console.log('Visualizing signatures:', signatures);
+            
+            // Future enhancement: display actual PDF pages with bounding boxes
+            if (signatures && signatures.length > 0) {
+                signatureVisualization.style.display = 'block';
+                
+                signatureGrid.innerHTML = signatures.map((sig, index) => `
+                    <div class="signature-item" style="animation-delay: ${index * 0.2}s;">
+                        <div class="signature-preview">
+                            <div style="font-size: 0.8rem; color: #6b7280;">
+                                Page ${sig.page_number || 'N/A'}
+                            </div>
+                        </div>
+                        <div class="signature-info">
+                            <strong>${sig.unique_id || `Sig ${index + 1}`}</strong><br>
+                            Page ${sig.page_number || 'N/A'}
+                        </div>
+                        <div class="signature-confidence">
+                            ${((sig.confidence_score || 0.5) * 100).toFixed(1)}%
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Keyboard shortcuts for demo control
+        document.addEventListener('keydown', (e) => {
+            // Only if not typing in input fields
+            if (e.target.tagName === 'INPUT') return;
+            
+            if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                clearResults();
+            }
+            if (e.key === 's' || e.key === 'S') {
+                e.preventDefault();
+                if (!analyzeBtn.disabled) startAnalysis();
+            }
+            if (e.key === 'd' || e.key === 'D') {
+                e.preventDefault();
+                if (analysisState.results) downloadRealReport();
+            }
+        });
+
+        // Initialize the application - Fixed initialization
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 PDF Signature Cross-Reference System initialized');
+            
+            // Check API connection on startup
+            await checkAPIConnection();
+            
+            // Initialize button state
+            checkAnalyzeButton();
+            
+            // Add helpful instructions
+            setTimeout(() => {
+                const instructions = document.createElement('div');
+                instructions.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: rgba(31, 41, 55, 0.95);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 12px;
+                    font-size: 0.85rem;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    z-index: 1000;
+                    max-width: 300px;
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                `;
+                
+                instructions.innerHTML = `
+                    <strong style="color: #00f5ff;">🎮 Demo Controls:</strong><br><br>
+                    <strong>Setup:</strong><br>
+                    • Start Flask backend first<br>
+                    • Upload reference PDF<br>
+                    • Select target PDFs<br><br>
+                    <strong>Shortcuts:</strong><br>
+                    • Press 'S' to Start Analysis<br>
+                    • Press 'D' to Download Report<br>
+                    • Press 'R' to Reset<br><br>
+                    <strong>Features:</strong><br>
+                    • Real-time progress tracking<br>
+                    • Live clustering visualization<br>
+                    • Interactive signature details<br>
+                    • Actual Excel report download
+                `;
+                
+                document.body.appendChild(instructions);
+                
+                // Auto-hide after 12 seconds
+                setTimeout(() => {
+                    instructions.style.opacity = '0';
+                    instructions.style.transition = 'opacity 0.5s ease';
+                    setTimeout(() => instructions.remove(), 500);
+                }, 12000);
+            }, 2000);
+        });
+
+        // Enhanced error boundary for production-ready demo
+        window.addEventListener('error', (event) => {
+            console.error('Global error caught:', event.error);
+            handleError(event.error, 'System');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            handleError(event.reason, 'Promise');
+        });
+
+        // Demo-specific enhancements for Monday presentation
+        function addDemoEnhancements() {
+            // Add visual feedback for file selection
+            [referenceFile, targetFiles].forEach(input => {
+                input.addEventListener('change', () => {
+                    // Add subtle success animation
+                    const parent = input.parentElement.parentElement;
+                    parent.style.animation = 'successPulse 0.6s ease';
+                    setTimeout(() => {
+                        parent.style.animation = '';
+                    }, 600);
+                });
+            });
+            
+            // Add CSS for success animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes successPulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Call enhancements
+        addDemoEnhancements();
+
+        // Performance monitoring for demo
+        function logPerformanceMetrics() {
+            if (analysisState.results) {
+                console.log('📊 Performance Metrics:');
+                console.log(`   • Level 1 Signers: ${analysisState.results.level1Signers}`);
+                console.log(`   • Final Signers: ${analysisState.results.level2FinalSigners}`);
+                console.log(`   • Target PDFs: ${analysisState.results.targetPDFs.length}`);
+                console.log(`   • Total Signatures: ${analysisState.results.totalSignaturesProcessed}`);
+                console.log(`   • Success Rate: ${calculateSuccessRate()}%`);
+            }
+        }
+
+        // Add demo tips for better presentation
+        function showDemoTips() {
+            const tips = [
+                "💡 Tip: Use PDFs with multiple clear signatures for best demo results",
+                "🎯 Tip: The two-level clustering works best with 3+ signatures per person",
+                "⚡ Tip: Processing time depends on PDF size and signature count", 
+                "📊 Tip: Click on signature items to see detailed analysis",
+                "🔍 Tip: Use different signature styles to showcase clustering power"
+            ];
+            
+            let currentTip = 0;
+            setInterval(() => {
+                if (!analysisState.isAnalyzing && !analysisState.results) {
+                    showApiStatus(tips[currentTip], 'success');
+                    currentTip = (currentTip + 1) % tips.length;
+                }
+            }, 10000);
+        }
+
+        // Start demo tips after initialization
+        setTimeout(showDemoTips, 5000);
+    </script>
+</body>
+</html>
