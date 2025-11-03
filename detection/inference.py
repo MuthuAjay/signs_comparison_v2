@@ -234,12 +234,82 @@ class SignatureDetector:
         
         return image_rgb
     
+    def crop_and_save_detections(
+        self,
+        image: Union[Image.Image, np.ndarray],
+        detections: List[dict],
+        output_dir: str,
+        prefix: str = "crop",
+        padding: int = 10
+    ) -> List[str]:
+        """
+        Crop detected regions and save them as individual images.
+        
+        Args:
+            image: PIL Image or numpy array
+            detections: List of detection dictionaries
+            output_dir: Directory to save cropped images
+            prefix: Prefix for saved filenames
+            padding: Extra padding around the bounding box (in pixels)
+            
+        Returns:
+            List of paths to saved crop images
+        """
+        # Convert to PIL Image if needed
+        if isinstance(image, np.ndarray):
+            if len(image.shape) == 3 and image.shape[2] == 3:
+                # Assume RGB numpy array
+                image_pil = Image.fromarray(image)
+            else:
+                image_pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        else:
+            image_pil = image
+        
+        # Create output directory
+        os.makedirs(output_dir, exist_ok=True)
+        
+        saved_paths = []
+        img_width, img_height = image_pil.size
+        
+        for idx, det in enumerate(detections, 1):
+            box = det['box']
+            label = det['label']
+            class_name = det['class_name']
+            score = det['score']
+            
+            # Extract box coordinates with padding
+            x_min, y_min, x_max, y_max = map(int, box)
+            
+            # Add padding
+            x_min = max(0, x_min - padding)
+            y_min = max(0, y_min - padding)
+            x_max = min(img_width, x_max + padding)
+            y_max = min(img_height, y_max + padding)
+            
+            # Crop the region
+            cropped = image_pil.crop((x_min, y_min, x_max, y_max))
+            
+            # Generate filename
+            filename = f"{prefix}_{idx}_{class_name}_{score:.2f}.png"
+            save_path = os.path.join(output_dir, filename)
+            
+            # Save cropped image
+            cropped.save(save_path)
+            saved_paths.append(save_path)
+            
+            print(f"  Saved crop {idx}: {save_path}")
+        
+        return saved_paths
+    
     def process_image(
         self,
         image_path: str,
         output_path: Optional[str] = None,
-        show: bool = True
-    ) -> Tuple[List[dict], np.ndarray]:
+        show: bool = True,
+        save_crops: bool = False,
+        crops_dir: Optional[str] = None,
+        crop_padding: int = 10
+    ) -> Tuple[List[dict], np.ndarray, Optional[List[str]]]:
         """
         Process a single image file.
         
@@ -247,9 +317,12 @@ class SignatureDetector:
             image_path: Path to the image file
             output_path: Optional path to save the result
             show: Whether to display the result
+            save_crops: Whether to save cropped detections
+            crops_dir: Directory to save crops (defaults to '<image_name>_crops')
+            crop_padding: Padding around crops in pixels
             
         Returns:
-            Tuple of (detections, visualized image)
+            Tuple of (detections, visualized image, crop paths)
         """
         print(f"\nProcessing image: {image_path}")
         
@@ -268,15 +341,33 @@ class SignatureDetector:
             image, detections, save_path=output_path, show=show
         )
         
-        return detections, result_image
+        # Save crops if requested
+        crop_paths = None
+        if save_crops and len(detections) > 0:
+            if crops_dir is None:
+                # Default: create crops directory next to image
+                image_stem = Path(image_path).stem
+                crops_dir = str(Path(image_path).parent / f"{image_stem}_crops")
+            
+            print(f"\nSaving {len(detections)} cropped detection(s) to {crops_dir}")
+            crop_paths = self.crop_and_save_detections(
+                image, detections, crops_dir, 
+                prefix=Path(image_path).stem,
+                padding=crop_padding
+            )
+        
+        return detections, result_image, crop_paths
     
     def process_pdf(
         self,
         pdf_path: str,
         output_dir: Optional[str] = None,
         show: bool = True,
-        dpi: int = 200
-    ) -> List[Tuple[int, List[dict], np.ndarray]]:
+        dpi: int = 200,
+        save_crops: bool = False,
+        crops_dir: Optional[str] = None,
+        crop_padding: int = 10
+    ) -> List[Tuple[int, List[dict], np.ndarray, Optional[List[str]]]]:
         """
         Process a PDF file (all pages) using PyMuPDF.
         
@@ -285,9 +376,12 @@ class SignatureDetector:
             output_dir: Optional directory to save the results
             show: Whether to display the results
             dpi: DPI for PDF to image conversion (zoom factor)
+            save_crops: Whether to save cropped detections
+            crops_dir: Directory to save crops (defaults to '<pdf_name>_crops')
+            crop_padding: Padding around crops in pixels
             
         Returns:
-            List of tuples (page_number, detections, visualized image)
+            List of tuples (page_number, detections, visualized image, crop paths)
         """
         print(f"\nProcessing PDF: {pdf_path}")
         print("Converting PDF to images using PyMuPDF...")
@@ -306,6 +400,12 @@ class SignatureDetector:
         # Calculate zoom factor from DPI (default PDF is 72 DPI)
         zoom = dpi / 72
         mat = fitz.Matrix(zoom, zoom)
+        
+        # Setup crops directory if needed
+        if save_crops:
+            if crops_dir is None:
+                crops_dir = str(Path(pdf_path).parent / f"{Path(pdf_path).stem}_crops")
+            os.makedirs(crops_dir, exist_ok=True)
         
         results = []
         
@@ -343,7 +443,18 @@ class SignatureDetector:
                 image, detections, save_path=save_path, show=show
             )
             
-            results.append((page_num + 1, detections, result_image))
+            # Save crops if requested
+            crop_paths = None
+            if save_crops and len(detections) > 0:
+                page_crops_dir = os.path.join(crops_dir, f"page_{page_num + 1}")
+                print(f"Saving {len(detections)} cropped detection(s) to {page_crops_dir}")
+                crop_paths = self.crop_and_save_detections(
+                    image, detections, page_crops_dir,
+                    prefix=f"{Path(pdf_path).stem}_p{page_num + 1}",
+                    padding=crop_padding
+                )
+            
+            results.append((page_num + 1, detections, result_image, crop_paths))
         
         # Close the PDF
         pdf_document.close()
@@ -354,7 +465,10 @@ class SignatureDetector:
         self,
         file_path: str,
         output_path: Optional[str] = None,
-        show: bool = True
+        show: bool = True,
+        save_crops: bool = False,
+        crops_dir: Optional[str] = None,
+        crop_padding: int = 10
     ):
         """
         Process either an image or PDF file.
@@ -363,13 +477,22 @@ class SignatureDetector:
             file_path: Path to the file
             output_path: Optional output path/directory
             show: Whether to display results
+            save_crops: Whether to save cropped detections
+            crops_dir: Directory to save crops
+            crop_padding: Padding around crops in pixels
         """
         file_ext = Path(file_path).suffix.lower()
         
         if file_ext == '.pdf':
-            return self.process_pdf(file_path, output_dir=output_path, show=show)
+            return self.process_pdf(
+                file_path, output_dir=output_path, show=show,
+                save_crops=save_crops, crops_dir=crops_dir, crop_padding=crop_padding
+            )
         elif file_ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']:
-            return self.process_image(file_path, output_path=output_path, show=show)
+            return self.process_image(
+                file_path, output_path=output_path, show=show,
+                save_crops=save_crops, crops_dir=crops_dir, crop_padding=crop_padding
+            )
         else:
             raise ValueError(f"Unsupported file format: {file_ext}")
 
@@ -414,6 +537,23 @@ def main():
         default=None,
         help='Device to run inference on'
     )
+    parser.add_argument(
+        '--save-crops',
+        action='store_true',
+        help='Save cropped detections as individual images'
+    )
+    parser.add_argument(
+        '--crops-dir',
+        type=str,
+        default=None,
+        help='Directory to save cropped images (default: auto-generated)'
+    )
+    parser.add_argument(
+        '--crop-padding',
+        type=int,
+        default=10,
+        help='Padding around cropped detections in pixels (default: 10)'
+    )
     
     args = parser.parse_args()
     
@@ -439,7 +579,10 @@ def main():
         detector.process_file(
             file_path=args.input,
             output_path=args.output,
-            show=not args.no_show
+            show=not args.no_show,
+            save_crops=args.save_crops,
+            crops_dir=args.crops_dir,
+            crop_padding=args.crop_padding
         )
         print("\n✓ Processing complete!")
     except Exception as e:
