@@ -1,3 +1,7 @@
 models/model_final.pth
 *.png
 *.jpg
+__pycache__/
+*.py[cod]
+*.pth
+*.pdf
