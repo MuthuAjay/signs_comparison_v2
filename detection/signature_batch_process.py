@@ -40,15 +40,13 @@ class SignatureDetector:
         """
         self.num_classes = num_classes
         self.confidence_threshold = confidence_threshold
-        
+
         # Set device
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = torch.device(device)
-        
-        print(f"Using device: {self.device}")
-        
+
         # Load model
         self.model = self._load_model(model_path)
         self.model.eval()
@@ -75,25 +73,22 @@ class SignatureDetector:
     
     def _load_model(self, model_path: str) -> torch.nn.Module:
         """Load the trained model from checkpoint."""
-        print(f"Loading model from {model_path}...")
-        
         # Create model architecture
         model = fasterrcnn_resnet50_fpn(weights=None)
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, self.num_classes)
-        
+
         # Load weights
         checkpoint = torch.load(model_path, map_location=self.device)
-        
+
         # Handle different checkpoint formats
         if 'model_state_dict' in checkpoint:
             model.load_state_dict(checkpoint['model_state_dict'])
         else:
             model.load_state_dict(checkpoint)
-        
+
         model.to(self.device)
-        print("Model loaded successfully!")
-        
+
         return model
     
     def preprocess_image(self, image: Image.Image) -> Tuple[torch.Tensor, Tuple[int, int]]:
@@ -114,27 +109,27 @@ class SignatureDetector:
     def detect(self, image: Image.Image) -> List[dict]:
         """
         Perform signature detection on an image.
-        
+
         Args:
             image: PIL Image
-            
+
         Returns:
             List of detections with boxes, labels, and scores
         """
         # Preprocess
         image_tensor, original_size = self.preprocess_image(image)
         image_tensor = image_tensor.to(self.device)
-        
+
         # Run inference
         predictions = self.model([image_tensor])[0]
-        
+
         # Filter by confidence threshold
         keep_indices = predictions['scores'] > self.confidence_threshold
-        
+
         boxes = predictions['boxes'][keep_indices].cpu().numpy()
         labels = predictions['labels'][keep_indices].cpu().numpy()
         scores = predictions['scores'][keep_indices].cpu().numpy()
-        
+
         # Format detections
         detections = []
         for box, label, score in zip(boxes, labels, scores):
@@ -144,8 +139,20 @@ class SignatureDetector:
                 'class_name': self.class_names.get(int(label), 'unknown'),
                 'score': float(score)
             })
-        
+
         return detections
+
+    def filter_signatures_only(self, detections: List[dict]) -> List[dict]:
+        """
+        Filter detections to keep only signatures (label == 1).
+
+        Args:
+            detections: List of all detections
+
+        Returns:
+            List of detections containing only signatures
+        """
+        return [det for det in detections if det['label'] == 1]
     
     def visualize_detections(
         self,
@@ -250,19 +257,16 @@ class SignatureDetector:
             show: Whether to display the result
 
         Returns:
-            List of detections
+            List of signature detections (filtered to signatures only)
         """
-        print(f"\nProcessing image: {image_path}")
-
         # Load image
         image = Image.open(image_path).convert('RGB')
 
-        # Detect signatures
-        detections = self.detect(image)
+        # Detect all objects
+        all_detections = self.detect(image)
 
-        print(f"Found {len(detections)} detection(s)")
-        for i, det in enumerate(detections, 1):
-            print(f"  {i}. {det['class_name']} (confidence: {det['score']:.3f})")
+        # Filter to keep only signatures
+        detections = self.filter_signatures_only(all_detections)
 
         return detections
     
@@ -283,19 +287,13 @@ class SignatureDetector:
         Returns:
             List of tuples (page_number, detections)
         """
-        print(f"\nProcessing PDF: {pdf_path}")
-        print("Converting PDF to images using PyMuPDF...")
-
         # Open PDF with PyMuPDF
         try:
             pdf_document = fitz.open(pdf_path)
         except Exception as e:
-            print(f"Error opening PDF: {e}")
-            print("Make sure PyMuPDF is installed: pip install pymupdf")
             raise
 
         num_pages = len(pdf_document)
-        print(f"Processing {num_pages} page(s)...")
 
         # Calculate zoom factor from DPI (default PDF is 72 DPI)
         zoom = dpi / 72
@@ -304,8 +302,6 @@ class SignatureDetector:
         results = []
 
         for page_num in range(num_pages):
-            print(f"\n--- Page {page_num + 1}/{num_pages} ---")
-
             # Get the page
             page = pdf_document[page_num]
 
@@ -316,12 +312,11 @@ class SignatureDetector:
             img_data = pix.tobytes("png")
             image = Image.open(io.BytesIO(img_data)).convert('RGB')
 
-            # Detect signatures
-            detections = self.detect(image)
+            # Detect all objects
+            all_detections = self.detect(image)
 
-            print(f"Found {len(detections)} detection(s)")
-            for i, det in enumerate(detections, 1):
-                print(f"  {i}. {det['class_name']} (confidence: {det['score']:.3f})")
+            # Filter to keep only signatures
+            detections = self.filter_signatures_only(all_detections)
 
             results.append((page_num + 1, detections))
 
@@ -355,29 +350,26 @@ class SignatureDetector:
     def find_files(folder_path: str, extensions: Optional[List[str]] = None) -> List[str]:
         """
         Recursively find all files with specified extensions in a folder and its subfolders.
-        
+
         Args:
             folder_path: Root folder path to search
             extensions: List of file extensions to search for (e.g., ['.pdf', '.jpg'])
                        If None, searches for all supported formats
-            
+
         Returns:
             List of absolute file paths
         """
         if extensions is None:
             # Default: all supported formats
             extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
-        
+
         # Normalize extensions to lowercase
-        extensions = [ext.lower() if ext.startswith('.') else f'.{ext.lower()}' 
+        extensions = [ext.lower() if ext.startswith('.') else f'.{ext.lower()}'
                      for ext in extensions]
-        
+
         found_files = []
         folder_path = Path(folder_path)
-        
-        print(f"Searching for files in: {folder_path}")
-        print(f"Looking for extensions: {extensions}")
-        
+
         # Walk through directory tree
         for root, dirs, files in os.walk(folder_path):
             for file in files:
@@ -385,8 +377,7 @@ class SignatureDetector:
                 if file_ext in extensions:
                     full_path = os.path.join(root, file)
                     found_files.append(full_path)
-        
-        print(f"Found {len(found_files)} file(s)")
+
         return sorted(found_files)
     
     def process_folder(
@@ -421,15 +412,9 @@ class SignatureDetector:
         
         # Find all files
         files = self.find_files(str(folder_path), extensions)
-        
+
         if not files:
-            print("No files found to process!")
             return {'total_files': 0, 'processed': 0, 'failed': 0, 'results': []}
-        
-        print(f"\n{'='*60}")
-        print(f"Processing {len(files)} file(s) from folder: {folder_path}")
-        print(f"Output directory: {output_dir}")
-        print(f"{'='*60}\n")
         
         results = {
             'total_files': len(files),
@@ -439,18 +424,15 @@ class SignatureDetector:
         }
         
         # Process each file
-        for idx, file_path in enumerate(files, 1):
+        for file_path in tqdm(files, desc="Processing files", unit="file"):
             try:
-                print(f"\n[{idx}/{len(files)}] Processing: {Path(file_path).name}")
-                print(f"  Full path: {file_path}")
-
                 # Setup paths for this file
                 file_ext = Path(file_path).suffix.lower()
 
                 if file_ext == '.pdf':
                     result = self.process_pdf(file_path, show=show)
 
-                    # Get pages with signatures and total count
+                    # Get pages with signatures and total count (signatures only)
                     pages_with_signatures = [page_num for page_num, detections in result if len(detections) > 0]
                     total_detections = sum(len(detections) for page_num, detections in result)
 
@@ -475,10 +457,8 @@ class SignatureDetector:
                     })
 
                 results['processed'] += 1
-                print(f"  ✓ Success")
 
             except Exception as e:
-                print(f"  ✗ Error: {e}")
                 results['failed'] += 1
                 results['results'].append({
                     'file': str(file_path),
@@ -629,7 +609,6 @@ def main():
     try:
         if os.path.isdir(args.input):
             # Process folder
-            print(f"Input is a folder. Processing all PDFs and images recursively...")
             detector.process_folder(
                 folder_path=args.input,
                 output_dir=args.output,
@@ -638,13 +617,11 @@ def main():
             )
         else:
             # Process single file
-            print(f"Input is a file. Processing single file...")
             detector.process_file(
                 file_path=args.input,
                 show=not args.no_show
             )
-        
-        print("\n✓ Processing complete!")
+
     except Exception as e:
         print(f"\n✗ Error during processing: {e}")
         import traceback
