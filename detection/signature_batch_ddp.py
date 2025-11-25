@@ -31,13 +31,14 @@ class PDFPageDataset(IterableDataset):
     Streaming Dataset that reads PDF pages on the fly.
     Optimized for multi-GPU with proper worker splitting.
     """
-    def __init__(self, file_paths: List[str], dpi: int = 200, rank: int = 0, world_size: int = 1):
+    def __init__(self, file_paths: List[str], dpi: int = 200, rank: int = 0, world_size: int = 1, files_counter=None):
         self.file_paths = file_paths
         self.dpi = dpi
         self.zoom = dpi / 72
         self.matrix = fitz.Matrix(self.zoom, self.zoom)
         self.rank = rank
         self.world_size = world_size
+        self.files_counter = files_counter
 
     def parse_pdf(self, path: str):
         """Generator that yields pages from a PDF"""
@@ -58,6 +59,12 @@ class PDFPageDataset(IterableDataset):
 
                 yield img_np, path, page_num + 1
             doc.close()
+
+            # Increment completed files counter
+            if self.files_counter is not None:
+                with self.files_counter.get_lock():
+                    self.files_counter.value += 1
+
         except Exception as e:
             print(f"Error processing {path}: {e}")
 
@@ -149,7 +156,7 @@ class SignatureDetectorDDP:
         return [det for det in detections if det['label'] == 1]
 
     @torch.no_grad()
-    def process_pdfs_distributed(self, pdf_files: List[str], dpi: int = 200) -> Dict:
+    def process_pdfs_distributed(self, pdf_files: List[str], dpi: int = 200, files_counter=None, total_files: int = 0) -> Dict:
         """
         Process PDFs with DDP across multiple GPUs.
         Each GPU processes its own subset of files.
@@ -161,7 +168,7 @@ class SignatureDetectorDDP:
         }
 
         # Create dataset for this rank
-        dataset = PDFPageDataset(pdf_files, dpi=dpi, rank=self.rank, world_size=self.world_size)
+        dataset = PDFPageDataset(pdf_files, dpi=dpi, rank=self.rank, world_size=self.world_size, files_counter=files_counter)
 
         # DataLoader (no DistributedSampler needed for IterableDataset - we handle splitting internally)
         loader = DataLoader(
@@ -238,13 +245,22 @@ class SignatureDetectorDDP:
                 signature_detections = self.filter_signatures_only(detections)
                 all_pdf_results[pdf_path].append((page_num, signature_detections))
 
-            # Update progress bar with speed info
+            # Update progress bar with speed and remaining files info
             elapsed = time.time() - start_time
             pages_per_sec = total_pages / elapsed if elapsed > 0 else 0
-            iterator.set_postfix({
+
+            postfix_dict = {
                 'pages': total_pages,
                 'pages/s': f'{pages_per_sec:.1f}'
-            })
+            }
+
+            # Add remaining files count if counter is available
+            if files_counter is not None:
+                completed = files_counter.value
+                remaining = total_files - completed
+                postfix_dict['remaining'] = remaining
+
+            iterator.set_postfix(postfix_dict)
 
         # Consolidate results for this rank
         for pdf_path, page_results in all_pdf_results.items():
@@ -409,7 +425,7 @@ def cleanup_ddp():
     dist.destroy_process_group()
 
 
-def run_worker(rank: int, world_size: int, args):
+def run_worker(rank: int, world_size: int, args, files_counter, total_files):
     """Worker function for each GPU"""
     setup_ddp(rank, world_size)
 
@@ -424,15 +440,16 @@ def run_worker(rank: int, world_size: int, args):
             use_amp=not args.no_amp
         )
 
-        # Find PDF files (only rank 0 prints)
-        if rank == 0:
-            pdf_files = find_files(args.input, ['.pdf'])
-            print(f"\n📄 Found {len(pdf_files)} PDF files")
-        else:
-            pdf_files = find_files(args.input, ['.pdf'])
+        # Find PDF files
+        pdf_files = find_files(args.input, ['.pdf'])
 
-        # Process PDFs
-        local_results = detector.process_pdfs_distributed(pdf_files, dpi=200)
+        # Process PDFs with shared counter
+        local_results = detector.process_pdfs_distributed(
+            pdf_files,
+            dpi=200,
+            files_counter=files_counter,
+            total_files=total_files
+        )
 
         # Gather results to rank 0
         all_results = gather_results(local_results, rank, world_size)
@@ -477,18 +494,26 @@ def main():
         print("Error: No GPUs available!")
         sys.exit(1)
 
+    # Count total files
+    pdf_files = find_files(args.input, ['.pdf'])
+    total_files = len(pdf_files)
+
     print(f"\n{'='*60}")
     print(f"🚀 INITIALIZING MULTI-GPU SIGNATURE DETECTOR")
     print(f"{'='*60}")
+    print(f"Total PDF files: {total_files}")
     print(f"GPUs: {world_size}")
     print(f"Batch size per GPU: {args.batch_size}")
     print(f"Total effective batch size: {args.batch_size * world_size}")
     print(f"{'='*60}\n")
 
+    # Create shared counter for tracking completed files across all GPUs
+    files_counter = mp.Value('i', 0)
+
     # Spawn processes for each GPU
     mp.spawn(
         run_worker,
-        args=(world_size, args),
+        args=(world_size, args, files_counter, total_files),
         nprocs=world_size,
         join=True
     )
