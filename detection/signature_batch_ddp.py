@@ -6,6 +6,7 @@ Processes PDFs across multiple GPUs with optimized batching and reporting.
 import os
 import sys
 import csv
+import time
 from typing import List, Tuple, Optional, Dict
 from pathlib import Path
 import argparse
@@ -178,12 +179,28 @@ class SignatureDetectorDDP:
         device_type = 'cuda'
 
         if self.rank == 0:
-            print(f"🚀 Starting distributed inference on {self.world_size} GPUs...")
+            print(f"\n🚀 Starting distributed inference on {self.world_size} GPUs...")
+            print(f"📊 Each GPU will show its own progress bar\n")
 
-        # Create progress bar only on rank 0
-        iterator = tqdm(loader, desc=f"GPU {self.rank}", disable=(self.rank != 0)) if self.rank == 0 else loader
+        # Create progress bar for each rank with unique position
+        # Position ensures bars don't overwrite each other
+        iterator = tqdm(
+            loader,
+            desc=f"GPU {self.rank}",
+            position=self.rank,
+            leave=True,
+            unit="batch",
+            colour=['green', 'blue', 'yellow', 'red', 'magenta', 'cyan'][self.rank % 6]
+        )
+
+        start_time = time.time()
+        batch_count = 0
+        total_pages = 0
 
         for images, meta_batch in iterator:
+            batch_count += 1
+            total_pages += len(images)
+
             # Move to GPU
             images = [img.to(self.device, non_blocking=True) for img in images]
 
@@ -221,6 +238,14 @@ class SignatureDetectorDDP:
                 signature_detections = self.filter_signatures_only(detections)
                 all_pdf_results[pdf_path].append((page_num, signature_detections))
 
+            # Update progress bar with speed info
+            elapsed = time.time() - start_time
+            pages_per_sec = total_pages / elapsed if elapsed > 0 else 0
+            iterator.set_postfix({
+                'pages': total_pages,
+                'pages/s': f'{pages_per_sec:.1f}'
+            })
+
         # Consolidate results for this rank
         for pdf_path, page_results in all_pdf_results.items():
             page_results.sort(key=lambda x: x[0])
@@ -237,6 +262,14 @@ class SignatureDetectorDDP:
                 'status': 'success'
             })
             local_results['processed'] += 1
+
+        # Print GPU summary
+        elapsed_total = time.time() - start_time
+        print(f"\n✅ GPU {self.rank} completed:")
+        print(f"   Files: {local_results['processed']}")
+        print(f"   Total pages: {total_pages}")
+        print(f"   Time: {elapsed_total:.1f}s")
+        print(f"   Speed: {total_pages/elapsed_total:.1f} pages/s")
 
         return local_results
 
