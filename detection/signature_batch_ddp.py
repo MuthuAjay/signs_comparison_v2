@@ -508,8 +508,9 @@ def main():
     print(f"Total effective batch size: {args.batch_size * world_size}")
     print(f"{'='*60}\n")
 
-    # Create shared counter (works with fork on Linux)
-    files_counter = mp.Value('i', 0)
+    # FIX: Use spawn context for the shared counter (matches mp.spawn)
+    ctx = mp.get_context('spawn')
+    files_counter = ctx.Value('i', 0)
 
     # Spawn processes for each GPU
     mp.spawn(
@@ -518,7 +519,6 @@ def main():
         nprocs=world_size,
         join=True
     )
-
 
 if __name__ == "__main__":
     main()

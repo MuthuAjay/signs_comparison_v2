@@ -6,4 +6,5 @@ __pycache__/
 *.pth
 *.pdf
 
+.venv/*
 results/
