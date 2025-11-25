@@ -73,8 +73,16 @@ class PDFPageDataset(IterableDataset):
         per_rank = int(np.ceil(len(self.file_paths) / float(self.world_size)))
         start_idx = self.rank * per_rank
         end_idx = min(start_idx + per_rank, len(self.file_paths))
-
         rank_files = self.file_paths[start_idx:end_idx]
+
+        # ADD THIS: Split files across DataLoader workers
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None:
+            # Multiple workers - split files among them
+            per_worker = int(np.ceil(len(rank_files) / float(worker_info.num_workers)))
+            worker_start = worker_info.id * per_worker
+            worker_end = min(worker_start + per_worker, len(rank_files))
+            rank_files = rank_files[worker_start:worker_end]
 
         for path in rank_files:
             yield from self.parse_pdf(path)
