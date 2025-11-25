@@ -256,7 +256,8 @@ class SignatureDetectorDDP:
 
             # Add remaining files count if counter is available
             if files_counter is not None:
-                completed = files_counter.value
+                with files_counter.get_lock():
+                    completed = files_counter.value
                 remaining = total_files - completed
                 postfix_dict['remaining'] = remaining
 
@@ -507,7 +508,7 @@ def main():
     print(f"Total effective batch size: {args.batch_size * world_size}")
     print(f"{'='*60}\n")
 
-    # Create shared counter for tracking completed files across all GPUs
+    # Create shared counter (works with fork on Linux)
     files_counter = mp.Value('i', 0)
 
     # Spawn processes for each GPU
