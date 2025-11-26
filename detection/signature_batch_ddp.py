@@ -300,42 +300,30 @@ class SignatureDetectorDDP:
 
 
 def gather_results(local_results: Dict, rank: int, world_size: int) -> Dict:
-    """Gather results from all GPUs to rank 0"""
-    # Convert to tensors for gathering
-    processed = torch.tensor([local_results['processed']], device=f'cuda:{rank}')
-    failed = torch.tensor([local_results['failed']], device=f'cuda:{rank}')
-
+    """Gather results from all GPUs using all_gather_object"""
+    
+    # All ranks participate equally - no dst parameter needed
+    all_local_results = [None for _ in range(world_size)]
+    dist.all_gather_object(all_local_results, local_results)
+    
+    # Only rank 0 consolidates and returns
     if rank == 0:
-        # Gather tensors
-        processed_list = [torch.zeros(1, device=f'cuda:{rank}') for _ in range(world_size)]
-        failed_list = [torch.zeros(1, device=f'cuda:{rank}') for _ in range(world_size)]
-
-        dist.gather(processed, processed_list, dst=0)
-        dist.gather(failed, failed_list, dst=0)
-
-        # Gather results (using object list)
-        results_list = [None for _ in range(world_size)]
-        dist.gather_object(local_results['results'], results_list, dst=0)
-
-        # Consolidate
         all_results = {
-            'total_files': sum(p.item() for p in processed_list) + sum(f.item() for f in failed_list),
-            'processed': sum(p.item() for p in processed_list),
-            'failed': sum(f.item() for f in failed_list),
+            'total_files': 0,
+            'processed': 0,
+            'failed': 0,
             'results': []
         }
-
-        for results in results_list:
-            if results:
-                all_results['results'].extend(results)
-
+        
+        for lr in all_local_results:
+            all_results['processed'] += lr['processed']
+            all_results['failed'] += lr['failed']
+            all_results['results'].extend(lr['results'])
+        
+        all_results['total_files'] = all_results['processed'] + all_results['failed']
         return all_results
-    else:
-        # Non-root ranks just send
-        dist.gather(processed, dst=0)
-        dist.gather(failed, dst=0)
-        dist.gather_object(local_results['results'], dst=0)
-        return None
+    
+    return None
 
 
 def save_results(results: Dict, output_dir: Path, input_folder: Path, batch_size: int, world_size: int, use_amp: bool):
