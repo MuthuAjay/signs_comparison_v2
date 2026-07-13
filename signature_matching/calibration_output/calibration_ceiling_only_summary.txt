@@ -1,0 +1,25 @@
+CEILING-ONLY CALIBRATION (no unrelated/floor dataset available)
+======================================================================
+Shafiul Islam CMM crop and HCD crop, each vs 25 perturbed copies of itself
+(rotation +-3deg, scale 0.95-1.05x, translation +-4px, stroke dilation/erosion)
+
+COSINE
+  identical signature, varied capture (n=50): mean 0.981, range [0.915, 0.998]
+  observed pair: 0.920
+  observed within ceiling range: True
+
+PATCH
+  identical signature, varied capture (n=50): mean 0.798, range [0.500, 1.000]
+  observed pair: 0.350
+  observed within ceiling range: False
+
+SSIM
+  identical signature, varied capture (n=50): mean 0.955, range [0.895, 0.993]
+  observed pair: 0.820
+  observed within ceiling range: False
+
+NOTE: No floor/unrelated-writer experiment was run (no unrelated-signature
+dataset available). This only tells you whether the observed score is
+consistent with capture-condition noise on an identical signature -- it
+does NOT tell you whether that score is distinguishable from a different
+writer. Do not cite this alone as evidence the signatures match.

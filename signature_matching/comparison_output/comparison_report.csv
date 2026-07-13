@@ -1,0 +1,4 @@
+pair,type,global_cosine,patch_match_score,patch_mean_sim,ssim_aligned
+shafiul_cmm vs shafiul_hcd,ref-questioned,0.9172,0.3542,0.8892,0.8152
+shafiul_cmm vs shafqat_hcd,ref-questioned,0.7885,0.2083,0.7449,0.7376
+shafiul_hcd vs shafqat_hcd,questioned-questioned,0.8510,0.1667,0.7882,0.7296
