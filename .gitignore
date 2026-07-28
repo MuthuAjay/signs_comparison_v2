@@ -8,3 +8,12 @@ __pycache__/
 
 .venv/*
 results/
+# Corpus-derived output -- contains case file names, paths and document
+# metadata. Never commit: this repo has a public GitHub remote.
+probe_output*/
+detect_output*/
+ingest_output*/
+comparison_output/
+calibration_output/
+*.xlsx
+*.zip
