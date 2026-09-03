@@ -140,8 +140,15 @@ def global_cosine(cls_a: torch.Tensor, cls_b: torch.Tensor) -> float:
 # Step 3B: Patch-token mutual nearest-neighbor matching
 # ----------------------------------------------------------------------------
 
-def ink_patch_mask(ink: torch.Tensor, grid: int, min_ink: float = 0.02) -> torch.Tensor:
-    """Boolean mask [grid*grid] of patches that actually contain ink."""
+def ink_patch_mask(ink: torch.Tensor, grid: int, min_ink: float = 0.08) -> torch.Tensor:
+    """Boolean mask [grid*grid] of patches that actually contain ink.
+
+    min_ink is the mean ink fraction a 14x14 patch must carry to be scored. The
+    original default (0.02) admitted patches holding only stroke anti-aliasing;
+    DINOv2 tokens on near-blank patches are mutually highly correlated, so those
+    patches produced spurious mutual-NN matches and inflated the score. A stroke
+    genuinely crossing a patch covers well above 0.08.
+    """
     pooled = F.avg_pool2d(ink.unsqueeze(0).unsqueeze(0),
                           kernel_size=PATCH, stride=PATCH).flatten()
     return pooled > min_ink
@@ -169,7 +176,11 @@ def mutual_nn_match(pa: torch.Tensor, pb: torch.Tensor,
         s = sim[k, nn_ab[k]].item()
         if s >= sim_floor:
             matches.append((ia[k].item(), ib[nn_ab[k]].item(), s))
-    denom = min(len(ia), len(ib))
+    # Symmetric normalization. Dividing by min(len(ia), len(ib)) lets a small
+    # ink area match into a large one and score near 1.0 -- biased upward
+    # whenever the two ink areas differ, which is exactly the case when a
+    # questioned signature is more cramped than the reference standards.
+    denom = 0.5 * (len(ia) + len(ib))
     score = len(matches) / denom if denom else 0.0
     mean_sim = float(np.mean([m[2] for m in matches])) if matches else 0.0
     return {"score": score, "mean_sim": mean_sim, "matches": matches}
@@ -240,8 +251,31 @@ def align_to(ink_src: torch.Tensor, ink_ref: torch.Tensor) -> torch.Tensor:
     return x.squeeze(0)
 
 
-def ssim(a: torch.Tensor, b: torch.Tensor, win: int = 11, sigma: float = 1.5) -> float:
-    """SSIM on ink maps in [0,1], Gaussian window, torch-only."""
+def ink_region_mask(a: torch.Tensor, b: torch.Tensor,
+                    thr: float = 0.05, dilate: int = 15) -> torch.Tensor:
+    """Region where either signature has ink, dilated to include stroke context.
+
+    Dilation is what keeps the mask fair: it retains the immediate neighbourhood
+    of every stroke, so a stroke present in one image and absent in the other is
+    still scored as a disagreement rather than being masked away.
+    """
+    union = ((a > thr) | (b > thr)).float().unsqueeze(0).unsqueeze(0)
+    grown = F.max_pool2d(union, kernel_size=dilate, stride=1, padding=dilate // 2)
+    return grown.squeeze() > 0
+
+
+def ssim(a: torch.Tensor, b: torch.Tensor, win: int = 11, sigma: float = 1.5,
+         masked: bool = True) -> float:
+    """SSIM on ink maps in [0,1], Gaussian window, torch-only.
+
+    Averaged over the dilated ink region, not the whole canvas. In a window that
+    is pure background, mu = var = cov = 0 and the SSIM expression collapses to
+    (c1*c2)/(c1*c2) = 1.0 exactly. Roughly 90% of a 224x224 signature canvas is
+    background, so a whole-canvas mean is dominated by background agreement and
+    reports a high score for signatures that share nothing but their margins.
+
+    Pass masked=False to reproduce the original (inflated) behaviour.
+    """
     coords = torch.arange(win, dtype=torch.float32) - win // 2
     g = torch.exp(-(coords ** 2) / (2 * sigma ** 2))
     g = (g / g.sum()).unsqueeze(0)
@@ -257,7 +291,13 @@ def ssim(a: torch.Tensor, b: torch.Tensor, win: int = 11, sigma: float = 1.5) ->
     c1, c2 = 0.01 ** 2, 0.03 ** 2
     s = ((2 * mu_a * mu_b + c1) * (2 * cov + c2)) / \
         ((mu_a ** 2 + mu_b ** 2 + c1) * (var_a + var_b + c2))
-    return s.mean().item()
+
+    if not masked:
+        return s.mean().item()
+    m = ink_region_mask(a, b)
+    if not m.any():
+        return 0.0
+    return s[m].mean().item()
 
 
 # ----------------------------------------------------------------------------

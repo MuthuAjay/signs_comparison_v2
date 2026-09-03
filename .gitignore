@@ -17,3 +17,5 @@ comparison_output/
 calibration_output/
 *.xlsx
 *.zip
+*.csv
+*.docx

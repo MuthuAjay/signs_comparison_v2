@@ -92,10 +92,17 @@ def load_probe(probe_dir: str) -> dict:
 
     annots = defaultdict(list)
     crypto = Counter()
+    crypto_empty = Counter()
     for r in rows("signature_candidates.csv"):
         key = (r["rel_path"], int(r["page"]))
         if r["kind"] == "crypto_signature":
-            crypto[r["rel_path"]] += 1
+            # An AcroForm /Sig field with no /V is an unsigned placeholder --
+            # a slot in a template that nobody signed. Counting those as
+            # signatures inflates the total, so they are tracked separately.
+            if str(r.get("signed", "")).strip().lower() == "true":
+                crypto[r["rel_path"]] += 1
+            else:
+                crypto_empty[r["rel_path"]] += 1
         elif r["kind"] == "vector_ink":
             try:
                 annots[key].append({"x0": float(r["x0"]), "y0": float(r["y0"]),
@@ -107,7 +114,8 @@ def load_probe(probe_dir: str) -> dict:
     for r in rows("pages.csv"):
         pages[(r["rel_path"], int(r["page"]))] = r["composition"]
 
-    return {"images": images, "ink": annots, "crypto": crypto, "pages": pages}
+    return {"images": images, "ink": annots, "crypto": crypto,
+            "crypto_empty": crypto_empty, "pages": pages}
 
 
 # ----------------------------------------------------------------------------
@@ -272,6 +280,7 @@ def write_xlsx(path: str, rows: list[dict], dets: list[dict],
             "TOTAL digital signs": r["total_digital_signs"],
             "TOTAL scanned signs": r["total_scanned_signs"],
             "  crypto sig fields": r["crypto_signature_fields"],
+            "Empty sig fields (unsigned)": r["empty_signature_fields"],
             "  pasted images": r["pasted_image"],
             "  vector ink": r["vector_ink"],
             "Unmatched": r["unmatched"],
@@ -296,11 +305,14 @@ def write_xlsx(path: str, rows: list[dict], dets: list[dict],
         ("Documents", len(rows)),
         ("TOTAL signatures", tot_digital + tot_scanned),
         ("DIGITAL signatures", tot_digital),
-        ("  crypto signature fields", sum(r["crypto_signature_fields"] for r in rows)),
+        ("  crypto signature fields (signed)",
+         sum(r["crypto_signature_fields"] for r in rows)),
         ("  pasted images", sum(r["pasted_image"] for r in rows)),
         ("  vector ink annotations", sum(r["vector_ink"] for r in rows)),
         ("SCANNED signatures (wet ink)", tot_scanned),
         ("Unmatched detections", sum(r["unmatched"] for r in rows)),
+        ("Empty signature fields (unsigned, NOT counted)",
+         sum(r["empty_signature_fields"] for r in rows)),
         ("Documents with any signature",
          sum(1 for r in rows if r["total_digital_signs"] or r["total_scanned_signs"])),
         ("", ""),
@@ -441,6 +453,7 @@ def run(root, probe_dir, model_path, out_dir, conf=0.5, batch_size=16,
             "total_digital_signs": digital,
             "total_scanned_signs": scanned,
             "crypto_signature_fields": crypto,
+            "empty_signature_fields": probe["crypto_empty"].get(rel, 0),
             "pasted_image": c["pasted_image"],
             "vector_ink": c["vector_ink"],
             "scanned_wet_ink": scanned,
@@ -472,10 +485,12 @@ def run(root, probe_dir, model_path, out_dir, conf=0.5, batch_size=16,
     print(f"Documents            : {len(rows)}")
     print(f"\n  TOTAL signatures   : {tot['total_signs']}")
     print(f"\n  DIGITAL            : {tot['total_digital_signs']}")
-    print(f"    crypto fields    : {tot['crypto_signature_fields']}")
+    print(f"    crypto fields    : {tot['crypto_signature_fields']} (signed)")
     print(f"    pasted images    : {tot['pasted_image']}")
     print(f"    vector ink       : {tot['vector_ink']}")
     print(f"\n  SCANNED (wet ink)  : {tot['total_scanned_signs']}")
+    print(f"\n  empty sig fields   : {tot['empty_signature_fields']}"
+          f"   (unsigned placeholders -- NOT counted as signatures)")
     print(f"\n  unmatched          : {tot['unmatched']}"
           f"   (detected, no object explains it -- inspect these)")
     if n_suppressed:
